@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import * as tf from '@tensorflow/tfjs';
 
 function ConInput() {
@@ -7,34 +7,28 @@ function ConInput() {
   const [prediction, setPrediction] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [imageSrc, setImageSrc] = useState('');
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const imageRef = useRef(null);
+  const species_dog = ["ปั๊ก", "ไซบีเรียนฮัสกี", "โกลเด้น รีทริฟเวอร์", "ชิวาวา", "ปอมเมอเรเนียน"]
 
   const loadModel = async () => {
     try {
-      const model = await tf.loadLayersModel('/tfjs_model/model.json');
-      setModel(model);
+      const loadedModel = await tf.loadGraphModel('/tfjs_dog_breed_classifier/model.json');
+      console.log("Model loaded successfully");
+      setModel(loadedModel);
     } catch (error) {
-      console.error('Failed to load model:', error);
+      console.error("Error loading model:", error);
     }
   };
 
   const handleFileChange = (e) => {
     if (e.target.files.length > 0) {
       setFileSelected(true);
+      setIsImageLoaded(false);
       const file = e.target.files[0];
       const reader = new FileReader();
-      reader.onload = async (event) => {
-        const img = new Image();
-        img.src = event.target.result;
+      reader.onload = (event) => {
         setImageSrc(event.target.result);
-        img.onload = async () => {
-          const image = tf.browser.fromPixels(img).resizeNearestNeighbor([224, 224]).expandDims(0).toFloat().div(tf.scalar(255));
-          if (model) {
-            setIsLoading(true);
-            const prediction = model.predict(image);
-            setPrediction(prediction.arraySync());
-            setIsLoading(false);
-          }
-        };
       };
       reader.readAsDataURL(file);
     }
@@ -44,9 +38,39 @@ function ConInput() {
     loadModel();
   }, []);
 
-  const handleClassify = () => {
-    if (!fileSelected) return;
-    // Classification logic is handled in the FileReader's onload event.
+  const preprocess = (img) => {
+    return tf.tidy(() => {
+      const tensor = tf.browser.fromPixels(img)
+        .resizeNearestNeighbor([224, 224])
+        .toFloat()
+        .expandDims();
+      return tensor.div(127.5).sub(1);
+    });
+  };
+
+  const handleImageLoad = () => {
+    console.log("Image loaded");
+    setIsImageLoaded(true);
+  };
+
+  const handleClassify = async () => {
+    if (!fileSelected || !model || !isImageLoaded || !imageRef.current) {
+      console.log("Cannot classify yet:", { fileSelected, modelLoaded: !!model, isImageLoaded, imageRefExists: !!imageRef.current });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const tensor = preprocess(imageRef.current);
+      const prediction = await model.predict(tensor);
+      const predictedClass = Array.from(prediction.dataSync());
+      setPrediction(predictedClass);
+      tensor.dispose();
+    } catch (error) {
+      console.error('Failed to run model:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -58,74 +82,43 @@ function ConInput() {
             type="file"
             className="file-input file-input-bordered w-full max-w-xs"
             onChange={handleFileChange}
+            accept="image/*"
           />
-          {fileSelected ? (
-            <button
-              className="btn"
-              style={{ backgroundColor: '#7F37B4', color: 'white' }}
-              onClick={handleClassify}
-            >
-              <svg
-                className="w-6 h-6 text-gray-800 dark:text-white"
-                aria-hidden="true"
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M13 10a1 1 0 0 1 1-1h.01a1 1 0 1 1 0 2H14a1 1 0 0 1-1-1Z"
-                  clipRule="evenodd"
-                />
-                <path
-                  fillRule="evenodd"
-                  d="M2 6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12c0 .556-.227 1.06-.593 1.422A.999.999 0 0 1 20.5 20H4a2.002 2.002 0 0 1-2-2V6Zm6.892 12 3.833-5.356-3.99-4.322a1 1 0 0 0-1.549.097L4 12.879V6h16v9.95l-3.257-3.619a1 1 0 0 0-1.557.088L11.2 18H8.892Z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              วิเคราะห์รูป
-            </button>
-          ) : (
-            <button
-              className="btn btn-disabled"
-              style={{ backgroundColor: '#cccccc', color: 'white' }}
-            >
-              <svg
-                className="w-6 h-6 text-gray-800 dark:text-white"
-                aria-hidden="true"
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M13 10a1 1 0 0 1 1-1h.01a1 1 0 1 1 0 2H14a1 1 0 0 1-1-1Z"
-                  clipRule="evenodd"
-                />
-                <path
-                  fillRule="evenodd"
-                  d="M2 6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12c0 .556-.227 1.06-.593 1.422A.999.999 0 0 1 20.5 20H4a2.002 2.002 0 0 1-2-2V6Zm6.892 12 3.833-5.356-3.99-4.322a1 1 0 0 0-1.549.097L4 12.879V6h16v9.95l-3.257-3.619a1 1 0 0 0-1.557.088L11.2 18H8.892Z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              กรุณาเลือกไฟล์
-            </button>
+          {imageSrc && (
+            <img
+              ref={imageRef}
+              src={imageSrc}
+              alt="Selected"
+              className="mx-auto my-4 max-w-xs"
+              onLoad={handleImageLoad}
+              style={{ display: isImageLoaded ? 'block' : 'none' }}
+            />
           )}
+          <button
+            className="btn"
+            style={{ backgroundColor: fileSelected && isImageLoaded ? '#7F37B4' : '#cccccc', color: 'white' }}
+            onClick={handleClassify}
+            disabled={!fileSelected || !isImageLoaded}
+          >
+            {fileSelected && isImageLoaded ? 'วิเคราะห์รูป' : 'กำลังโหลดรูป...'}
+          </button>
           {isLoading && <div className="loader">Loading...</div>}
           {!isLoading && prediction.length > 0 && (
             <div>
-              <img src={imageSrc} alt="Selected" className="mx-auto my-4" />
-              {prediction.map((pred, index) => (
-                <div key={index} className="flex justify-between items-center">
-                  <p>ผลลัพธ์ {index + 1}</p>
-                  <progress className="progress progress-primary w-56" value={pred} max="1"></progress>
-                  <span>{pred.toFixed(3)}</span>
-                </div>
-              ))}
+              {prediction
+                .map((pred, index) => ({ pred, index }))
+                .sort((a, b) => b.pred - a.pred)
+                .slice(0, 5)
+                .map(({ pred, index }) => (
+                  <div key={index} className="flex items-center mb-2">
+                    <p className="w-32 text-left truncate pr-2">{species_dog[index]}</p>
+                    <div className="flex-grow">
+                    <progress className="progress progress-primary w-52" value={pred} max="1"></progress>
+                    </div>
+                    <span className="w-16 text-right pl-2">{(pred * 100).toFixed(2)}%</span>
+                  </div>
+                ))
+              }
             </div>
           )}
         </div>
