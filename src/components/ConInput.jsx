@@ -74,10 +74,10 @@ function ConInput() {
   };
 
   return (
-    <div className="container max-w-full flex justify-center py-10 animate__animated animate__fadeInUp">
+    <div className="container max-w-full flex justify-center pt-36 pb-14 animate__animated animate__fadeInUp">
       <div className="container bg-white shadow-lg text-center rounded-xl p-12 mx-auto">
         <div className="flex flex-col items-center space-y-8">
-          <h1 className="text-3xl font-bold">เลือกรูปภาพ</h1>
+          <h1 className="text-3xl font-bold">โปรดเลือกรูปสุนัข</h1>
           <input
             type="file"
             className="file-input file-input-bordered w-full max-w-xs"
@@ -89,7 +89,7 @@ function ConInput() {
               ref={imageRef}
               src={imageSrc}
               alt="Selected"
-              className="mx-auto my-4 max-w-xs"
+              className="px-4 my-4 max-w-xs"
               onLoad={handleImageLoad}
               style={{ display: isImageLoaded ? 'block' : 'none' }}
             />
@@ -100,7 +100,9 @@ function ConInput() {
             onClick={handleClassify}
             disabled={!fileSelected || !isImageLoaded}
           >
-            {fileSelected && isImageLoaded ? 'วิเคราะห์รูป' : 'กำลังโหลดรูป...'}
+            {!fileSelected
+              ? 'กรุณาเลือกไฟล์'
+              : (isImageLoaded ? 'วิเคราะห์รูป' : 'กำลังโหลดรูป...')}
           </button>
           {isLoading && <div className="loader">Loading...</div>}
           {!isLoading && prediction.length > 0 && (
@@ -112,8 +114,8 @@ function ConInput() {
                 .map(({ pred, index }) => (
                   <div key={index} className="flex items-center mb-2">
                     <p className="w-32 text-left truncate pr-2">{species_dog[index]}</p>
-                    <div className="flex-grow">
-                    <progress className="progress progress-primary w-52" value={pred} max="1"></progress>
+                    <div className='flex-grow flex items-center'>
+                      <progress className="progress progress-primary 2xs:w-20 xs:w-60" value={pred} max="1"></progress>
                     </div>
                     <span className="w-16 text-right pl-2">{(pred * 100).toFixed(2)}%</span>
                   </div>

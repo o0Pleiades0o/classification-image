@@ -8,7 +8,7 @@ function Footer() {
                 <p>
                     SBAC - Information Technology .
                     <br />
-                    @Copyright 2024 - All right reserved
+                    
                 </p>
             </aside>
             <nav>
