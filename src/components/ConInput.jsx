@@ -38,6 +38,10 @@ function ConInput() {
     loadModel();
   }, []);
 
+  useEffect(() => {
+    console.log("isLoading changed:", isLoading);
+  }, [isLoading]);
+
   const preprocess = (img) => {
     return tf.tidy(() => {
       const tensor = tf.browser.fromPixels(img)
@@ -59,7 +63,13 @@ function ConInput() {
       return;
     }
 
+    console.log("Before classification: isLoading =", isLoading);
     setIsLoading(true);
+    console.log("After setIsLoading(true): isLoading =", isLoading);
+
+    // Simulate 2 seconds delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
     try {
       const tensor = preprocess(imageRef.current);
       const prediction = await model.predict(tensor);
@@ -70,8 +80,16 @@ function ConInput() {
       console.error('Failed to run model:', error);
     } finally {
       setIsLoading(false);
+      console.log("After setIsLoading(false): isLoading =", isLoading);
     }
   };
+
+  const LoadingIndicator = () => (
+    <div className="loader flex items-center justify-center">
+      <span className="loading loading-spinner loading-md mr-2"></span>
+      กำลังวิเคราะห์...
+    </div>
+  );
 
   return (
     <div className="container max-w-full flex justify-center pt-36 pb-14 animate__animated animate__fadeInUp">
@@ -98,13 +116,19 @@ function ConInput() {
             className="btn"
             style={{ backgroundColor: fileSelected && isImageLoaded ? '#7F37B4' : '#cccccc', color: 'white' }}
             onClick={handleClassify}
-            disabled={!fileSelected || !isImageLoaded}
+            disabled={!fileSelected || !isImageLoaded || isLoading}
           >
             {!fileSelected
               ? 'กรุณาเลือกไฟล์'
-              : (isImageLoaded ? 'วิเคราะห์รูป' : 'กำลังโหลดรูป...')}
+              : isLoading
+              ? 'กำลังวิเคราะห์...'
+              : isImageLoaded
+              ? 'วิเคราะห์รูป'
+              : 'กำลังโหลดรูป...'}
           </button>
-          {isLoading && <div className="loader">Loading...</div>}
+          
+          {isLoading && <LoadingIndicator />}
+          
           {!isLoading && prediction.length > 0 && (
             <div>
               {prediction
